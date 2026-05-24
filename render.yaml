@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: goanime-api
+    env: node
+    buildCommand: npm run build
+    startCommand: npm start
