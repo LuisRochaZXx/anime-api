@@ -1,32 +1,44 @@
 const express = require('express');
-const axios = require('axios');
-const cheerio = require('cheerio');
-
+const { execSync } = require('child_process');
+const path = require('path');
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Busca animes
-app.get('/search', async (req, res) => {
+const GOANIME_PATH = path.join(__dirname, 'goanime');
+
+app.get('/search', (req, res) => {
     try {
         const { q } = req.query;
         if (!q) return res.json({ error: 'Informe ?q=nome_do_anime' });
 
-        const { data } = await axios.get(`https://gogoanime.cl/search.html?keyword=${encodeURIComponent(q)}`);
-        const $ = cheerio.load(data);
-
-        const results = [];
-        $('.last_episode a, .img a').each((i, el) => {
-            const title = $(el).attr('title') || $(el).text().trim();
-            const link = $(el).attr('href');
-            if (title && link) results.push({ title, link });
+        // Chama o GoAnime via terminal
+        const output = execSync(`${GOANIME_PATH} search "${q}"`, {
+            timeout: 15000,
+            encoding: 'utf-8'
         });
 
-        res.json(results.slice(0, 10));
+        res.json({ resultado: output.trim() });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-app.get('/', (req, res) => res.send('API de Animes rodando!'));
+app.get('/episode', (req, res) => {
+    try {
+        const { anime, ep } = req.query;
+        if (!anime || !ep) return res.json({ error: 'Informe ?anime=NOME&ep=NUMERO' });
 
+        const output = execSync(`${GOANIME_PATH} episode "${anime}" -e ${ep} --print-url`, {
+            timeout: 20000,
+            encoding: 'utf-8'
+        });
+
+        res.json({ url: output.trim() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/', (req, res) => res.send('API GoAnime rodando!'));
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));
